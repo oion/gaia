@@ -18,9 +18,11 @@ class DossierFactory extends Factory
      */
     public function definition(): array
     {
-        $status = $this->faker->randomElement('completed', 'ongoing', 'rejected');
+        $status = $this->faker->randomElement(['completed', 'ongoing', 'rejected']);
         return [
             'customer_id' => Customer::factory(),
+            'name' => $this->faker->unique()->randomNumber(5, true),
+            'bcpi_id' => 83002, // 
             'status' =>  $status,
             'status_date' => $this->faker->dateTimeThisYear()
         ];

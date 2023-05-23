@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('dossiers', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->integer('bcpi_id');
             $table->integer('customer_id');
             $table->string('status'); // Ongoing, Completed, Returned, Cancelled
             $table->date('status_date');

@@ -9,8 +9,10 @@ class Customer extends Model
 {
     use HasFactory;
 
+
+
     public function dossiers()
     {
-        $this->hasMany(Dossier::class);
+        return  $this->hasMany(Dossier::class);
     }
 }

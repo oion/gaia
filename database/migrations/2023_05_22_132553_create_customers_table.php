@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('address');
             $table->string('city');
             $table->string('postal_code');
+            $table->string('county');
             $table->string('country_code');
             $table->timestamps();
         });

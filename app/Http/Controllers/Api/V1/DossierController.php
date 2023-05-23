@@ -1,20 +1,37 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Requests\StoreDossierRequest;
-use App\Http\Requests\UpdateDossierRequest;
 use App\Models\Dossier;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Http\Resources\V1\DossierResource;
+use App\Http\Resources\V1\DossierCollection;
+use App\Filters\V1\DossiersFilter;
+
 
 class DossierController extends Controller
 {
     /**
      * Display a listing of the resource.
+     * 
+     * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $filter = new DossiersFilter();
+        $queryItems = $filter->transform($request); //[['column', 'operator', 'value']]
+
+
+        if (count($queryItems) == 0) { //if there are no query arguments
+            return new DossierCollection(Dossier::paginate());
+        } else {
+            $dossiers = Dossier::where($queryItems)->paginate();
+
+            return new DossierCollection($dossiers->appends($request->query()));
+        }
     }
+
 
     /**
      * Show the form for creating a new resource.
@@ -38,6 +55,7 @@ class DossierController extends Controller
     public function show(Dossier $dossier)
     {
         //
+        return new DossierResource($dossier);
     }
 
     /**
