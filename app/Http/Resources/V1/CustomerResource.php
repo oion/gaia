@@ -14,6 +14,7 @@ class CustomerResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -24,6 +25,7 @@ class CustomerResource extends JsonResource
             'postalCode' => $this->postal_code,
             'county' => $this->county,
             'countryCode' => $this->country_code,
+            'dossiers' => DossierResource::collection($this->whenLoaded('dossiers'))
         ];
     }
 }

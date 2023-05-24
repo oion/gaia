@@ -22,15 +22,18 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $filter = new CustomersFilter();
-        $queryItems = $filter->transform($request); //[['column', 'operator', 'value']]
+        $filterItems = $filter->transform($request); //[['column', 'operator', 'value']]
 
-        if (count($queryItems) == 0) { //if there are no query arguments
-            return new CustomerCollection(Customer::paginate());
-        } else {
-            $customers = Customer::where($queryItems)->paginate();
+        $includeDossiers = $request->query('includeDossiers');
 
-            return new CustomerCollection($customers->appends($request->query()));
+        $customers = Customer::where($filterItems);
+
+        if ($includeDossiers) {
+            $customers = $customers->with('dossiers');
         }
+
+
+        return new CustomerCollection($customers->paginate()->appends($request->query()));
     }
 
     /**
@@ -54,6 +57,11 @@ class CustomerController extends Controller
      */
     public function show(Customer $customer)
     {
+        $includeDossiers = request()->query('includeDossiers');
+
+        if ($includeDossiers) {
+            return new CustomerResource($customer->loadMissing('dossiers'));
+        }
         return new CustomerResource($customer);
     }
 

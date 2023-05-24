@@ -22,7 +22,7 @@ class CustomerSeeder extends Seeder
             ->hasDossiers(3)
             ->create();
         Customer::factory()
-            ->count(3)
+            ->count(1)
             ->hasDossiers(0)
             ->create();
     }

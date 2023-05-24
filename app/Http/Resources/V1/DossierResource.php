@@ -14,6 +14,7 @@ class DossierResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+
         return [
             'customerId' => $this->customer_id,
             'name' => $this->name,
