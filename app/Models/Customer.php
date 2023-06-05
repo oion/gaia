@@ -10,6 +10,17 @@ class Customer extends Model
 {
     use HasFactory;
 
+    protected $fillable = [
+        'name',
+        'type',
+        'email',
+        'address',
+        'postal_code',
+        'city',
+        'county',
+        'country_code'
+    ];
+
 
     public function dossiers(): HasMany
     {

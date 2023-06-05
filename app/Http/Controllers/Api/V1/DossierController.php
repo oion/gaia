@@ -8,6 +8,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\DossierResource;
 use App\Http\Resources\V1\DossierCollection;
 use App\Filters\V1\DossiersFilter;
+use illuminate\Support\Arr;
+use App\Http\Requests\V1\BulkStoreDossierRequest;
+
 
 
 class DossierController extends Controller
@@ -34,27 +37,26 @@ class DossierController extends Controller
 
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreDossierRequest $request)
+    public function store(Request $request)
     {
         //
     }
 
+    public function bulkStore(BulkStoreDossierRequest $request)
+    {
+        $bulk = collect($request->all())->map(function ($arr, $key) {
+            return Arr::except($arr, ['customerId', 'bcpiId', 'statusDate']);
+        });
+
+        Dossier::insert($bulk->toArray());
+    }
     /**
      * Display the specified resource.
      */
     public function show(Dossier $dossier)
     {
-        //
         return new DossierResource($dossier);
     }
 
