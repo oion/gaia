@@ -98,6 +98,11 @@ class DossierController extends Controller
     {
         // Find the dossier by ID
         $dossier = Dossier::findOrFail($id);
+        $dossierDetails = $dossier->dossierDetails;
+
+        if (!$dossierDetails) {
+            $dossierDetails = new DossierDetails();
+        }
 
         $dossierName = $dossier->name;
         $year = 2022;
@@ -129,28 +134,16 @@ class DossierController extends Controller
             'Obiectul cererii:' => 'request_type',
             'Stare curentă:' => 'status',
         ];
-        $fieldMappingHistory = [
-            'Data' => 'received_date',
-            'Actiune' => 'completion_date',
-            'Stare' => 'request_type',
-            'Actor' => 'status',
-        ];
 
         // Find the table with class "tabelv"
         // AppDetails
         $tableRowsAppDetail = $crawler->filter('#AppDetail tr');
 
-        // Create a new instance of DossierDetails model
-        // TODO - if response is ok, create the details
-
-        // else return
-        $dossierDetails = new DossierDetails();
 
 
 
         // Loop through the rows and extract the cell data
         $tableRowsAppDetail->each(function ($row) use ($dossierDetails, $fieldMappingDetail) {
-
             $label = trim($row->filter('td:nth-of-type(1)')->text());
             $value = trim($row->filter('td:nth-of-type(2)')->text());
             // Map the crawled label to the field name
@@ -164,7 +157,6 @@ class DossierController extends Controller
 
 
         // History Crawler
-
         $tableRowsAppHist = $crawler->filter('#AppHist tr:not(.tabel_categorii)');
 
         if ($tableRowsAppHist->count() > 0) {
@@ -186,29 +178,32 @@ class DossierController extends Controller
             $dossierDetails->history = json_encode($history);
         }
 
-
-
-
         // Notes Crawler
-        if ($crawler->matches('#AppNote tbody')) {
-            $tableRowsAppNotes = $crawler->filter('#AppNote tbody')->children('tr');
+        $tableRowsAppNotes = $crawler->filter('#AppNote tr:not(.tabel_categorii)');
+        if ($tableRowsAppNotes->count() > 0) {
+            $notes = array();
+            foreach ($tableRowsAppNotes as $row) {
+                $rowElem = new Crawler($row);
+                $noteItem = array();
 
-            $tableRowsAppNotes->each(function (Crawler $row) use ($dossierDetails) {
-                $notes = [];
-                $cells = $row->filter('td')->each(function ($cell) {
-                    $notes[] = $cell->text();
-                });
-                $dossierDetails->notes = json_encode($notes);
-            });
+                foreach ($rowElem as $cell) {
+                    $cellElem = new Crawler($cell);
+                    $noteItem['date'] = $cellElem->filter('td:nth-child(1)')->text();
+                    $noteItem['observations'] = $cellElem->filter('td:nth-child(2)')->text();
+                    $noteItem['compartment'] = $cellElem->filter('td:nth-child(3)')->text();
+                };
+
+                array_push($notes, $noteItem);
+            };
+            $dossierDetails->notes = json_encode($notes);
         }
 
 
 
-        // Associate the dossier details with the dossier
-        $dossier->dossierDetails()->save($dossierDetails);
 
         // Save the scraped data
-        $dossierDetails->save();
+        $dossier->dossierDetails()->save($dossierDetails);
+
 
         // Return the dossier with the scraped data as JSON response
         return response()->json($dossier);
