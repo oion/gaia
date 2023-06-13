@@ -20,8 +20,11 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::group(['prefix' => 'v1', 'namespace' => 'App\Http\Controllers\Api\V1', 'middleware' => 'auth:sanctum'], function () {
+// Route::group(['prefix' => 'v1', 'namespace' => 'App\Http\Controllers\Api\V1', 'middleware' => 'auth:sanctum'], function () {
+Route::group(['prefix' => 'v1', 'namespace' => 'App\Http\Controllers\Api\V1'], function () {
     Route::apiResource('customers', CustomerController::class);
     Route::apiResource('dossiers', DossierController::class);
     Route::post('dossiers/bulk', ['uses' => 'DossierController@bulkStore']);
+
+    Route::get('dossiers/{id}/scraped', [DossierController::class, 'showWithScrapedData'])->name('dossiers.showWithScrapedData');
 });

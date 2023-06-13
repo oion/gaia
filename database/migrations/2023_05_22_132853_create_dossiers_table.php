@@ -16,8 +16,6 @@ return new class extends Migration
             $table->string('name');
             $table->integer('bcpi_id');
             $table->integer('customer_id');
-            $table->string('status'); // Ongoing, Completed, Returned, Cancelled
-            $table->date('status_date');
             $table->timestamps();
         });
     }

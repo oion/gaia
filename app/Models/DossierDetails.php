@@ -10,8 +10,18 @@ class DossierDetails extends Model
 {
   use HasFactory;
 
+  protected $fillable = [
+    'id',
+    'dossier_id',
+    'received_date',
+    'completion_date',
+    'status',
+    'history',
+    'notes'
+  ];
+
   // get dossier details
-  public function dosierDetails(): BelongsTo
+  public function dossier(): BelongsTo
   {
     return $this->belongsTo(Dossier::class, 'dossier_id');
   }

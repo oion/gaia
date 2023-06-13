@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('dossier_details', function (Blueprint $table) {
             $table->id();
             $table->integer('dossier_id');
-            $table->string('request_number');
-            $table->string('request_type');
-            $table->string('received_date');
-            $table->string('completion_date');
-            $table->string('status');
-            $table->string('cadastral_service');
+            $table->string('request_type')->nullable();
+            $table->string('received_date')->nullable();
+            $table->string('completion_date')->nullable();
+            $table->string('status')->nullable();
+            $table->json('history')->nullable();
+            $table->json('notes')->nullable();
             $table->timestamps();
         });
     }

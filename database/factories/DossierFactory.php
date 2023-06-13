@@ -23,8 +23,6 @@ class DossierFactory extends Factory
             'customer_id' => Customer::factory(),
             'name' => $this->faker->unique()->randomNumber(5, true),
             'bcpi_id' => 83002, // 
-            'status' =>  $status,
-            'status_date' => $this->faker->dateTimeThisYear()
         ];
     }
 }

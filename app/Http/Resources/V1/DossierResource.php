@@ -16,11 +16,13 @@ class DossierResource extends JsonResource
     {
 
         return [
+            'id' => $this->id,
             'customerId' => $this->customer_id,
             'name' => $this->name,
             'bcpiId' => $this->bcpi_id,
             'status' => $this->status,
             'statusDate' => $this->status_date,
+            'dossierDetails' => new DossierDetailsResource($this->whenLoaded('dossierDetails'))
         ];
     }
 }
