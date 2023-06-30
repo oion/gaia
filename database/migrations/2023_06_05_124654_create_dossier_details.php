@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->integer('dossier_id');
             $table->string('request_type')->nullable();
-            $table->string('received_date')->nullable();
-            $table->string('completion_date')->nullable();
+            $table->date('received_date')->nullable();
+            $table->date('completion_date')->nullable();
             $table->string('status')->nullable();
             $table->json('history')->nullable();
             $table->json('notes')->nullable();

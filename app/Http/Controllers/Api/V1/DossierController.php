@@ -8,14 +8,14 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\DomCrawler\Crawler;
+use Carbon\Carbon;
 
 
 use App\Http\Resources\V1\DossierResource;
 use App\Http\Resources\V1\DossierCollection;
 use App\Filters\V1\DossiersFilter;
-use illuminate\Support\Arr;
 use App\Http\Requests\V1\BulkStoreDossierRequest;
-use PhpParser\Node\Expr\Cast\Object_;
+
 
 class DossierController extends Controller
 {
@@ -94,118 +94,137 @@ class DossierController extends Controller
     }
 
 
-    public function showWithScrapedData($id)
+    /**
+     * Show the dossier with scraped data.
+     *
+     * @param int $id The ID of the dossier
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function showWithScrapedData(int $id)
     {
-        // Find the dossier by ID
-        $dossier = Dossier::findOrFail($id);
-        $dossierDetails = $dossier->dossierDetails;
+        try {
+            // Find the dossier by ID
+            $dossier = Dossier::findOrFail($id);
+            $dossierDetails = $dossier->dossierDetails ?? new DossierDetails();
 
-        if (!$dossierDetails) {
-            $dossierDetails = new DossierDetails();
+            // Scrape and save the data
+            $this->scrapeDossierData($dossier, $dossierDetails);
+
+            // Return the dossier with the scraped data as JSON response
+            return response()->json($dossier);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
 
-        $dossierName = $dossier->name;
-        $year = 2022;
-        $cadastral_service = 83002;
-
+    /**
+     * Scrape the dossier data and save it to the DossierDetails model.
+     *
+     * @param \App\Dossier $dossier The dossier model
+     * @param \App\DossierDetails $dossierDetails The dossier details model
+     */
+    private function scrapeDossierData(Dossier $dossier, DossierDetails $dossierDetails)
+    {
         $urlParams = [
-            'a' => $dossierName,
-            'b' => $cadastral_service,
-            'y' => $year
+            'a' => $dossier->name,
+            'b' => 83002,
+            'y' => 2022,
         ];
-
-        // Fetch the URL and dossier ID
-        // $url = 'https://www.ancpi.ro/aplicatii/urmarireCerereRGI/apptrack.php?b=83002&y=2022&a=145538';
         $url = 'https://www.ancpi.ro/aplicatii/urmarireCerereRGI/apptrack.php?' . http_build_query($urlParams);
 
         // Fetch the HTML content
-        $response = Http::get($url);
-        $html = $response->body();
-
-        // Parse the HTML using Symfony's DomCrawler
+        $html = Http::get($url)->body();
         $crawler = new Crawler($html);
 
+        // Scrape the application details
+        $this->scrapeAppDetails($crawler, $dossierDetails);
 
+        // Scrape the application history
+        $this->scrapeAppHistory($crawler, $dossierDetails);
 
-        // Define the mapping array for field mapping
-        $fieldMappingDetail = [
-            'Data înregistrare:' => 'received_date',
-            'Termen soluționare:' => 'completion_date',
-            'Obiectul cererii:' => 'request_type',
-            'Stare curentă:' => 'status',
-        ];
-
-        // Find the table with class "tabelv"
-        // AppDetails
-        $tableRowsAppDetail = $crawler->filter('#AppDetail tr');
-
-
-
-
-        // Loop through the rows and extract the cell data
-        $tableRowsAppDetail->each(function ($row) use ($dossierDetails, $fieldMappingDetail) {
-            $label = trim($row->filter('td:nth-of-type(1)')->text());
-            $value = trim($row->filter('td:nth-of-type(2)')->text());
-            // Map the crawled label to the field name
-            $fieldName = $fieldMappingDetail[$label] ?? null;
-
-            // If a matching field name is found, set it on the model instance
-            if ($fieldName) {
-                $dossierDetails->{$fieldName} = $value;
-            }
-        });
-
-
-        // History Crawler
-        $tableRowsAppHist = $crawler->filter('#AppHist tr:not(.tabel_categorii)');
-
-        if ($tableRowsAppHist->count() > 0) {
-            $history = array();
-            foreach ($tableRowsAppHist as $row) {
-                $rowElem = new Crawler($row);
-                $historyItem = array();
-
-                foreach ($rowElem as $cell) {
-                    $cellElem = new Crawler($cell);
-                    $historyItem['date'] = $cellElem->filter('td:nth-child(1)')->text();
-                    $historyItem['action'] = $cellElem->filter('td:nth-child(2)')->text();
-                    $historyItem['status'] = $cellElem->filter('td:nth-child(3)')->text();
-                    $historyItem['actor'] = $cellElem->filter('td:nth-child(4)')->text();
-                };
-
-                array_push($history, $historyItem);
-            };
-            $dossierDetails->history = json_encode($history);
-        }
-
-        // Notes Crawler
-        $tableRowsAppNotes = $crawler->filter('#AppNote tr:not(.tabel_categorii)');
-        if ($tableRowsAppNotes->count() > 0) {
-            $notes = array();
-            foreach ($tableRowsAppNotes as $row) {
-                $rowElem = new Crawler($row);
-                $noteItem = array();
-
-                foreach ($rowElem as $cell) {
-                    $cellElem = new Crawler($cell);
-                    $noteItem['date'] = $cellElem->filter('td:nth-child(1)')->text();
-                    $noteItem['observations'] = $cellElem->filter('td:nth-child(2)')->text();
-                    $noteItem['compartment'] = $cellElem->filter('td:nth-child(3)')->text();
-                };
-
-                array_push($notes, $noteItem);
-            };
-            $dossierDetails->notes = json_encode($notes);
-        }
-
-
-
+        // Scrape the application notes
+        $this->scrapeAppNotes($crawler, $dossierDetails);
 
         // Save the scraped data
         $dossier->dossierDetails()->save($dossierDetails);
+    }
 
+    /**
+     * Scrape the application details from the HTML.
+     *
+     * @param \Symfony\Component\DomCrawler\Crawler $crawler The HTML crawler
+     * @param \App\DossierDetails $dossierDetails The dossier details model
+     */
+    private function scrapeAppDetails(Crawler $crawler, DossierDetails $dossierDetails)
+    {
+        $tableRowsAppDetail = $crawler->filter('#AppDetail tr');
 
-        // Return the dossier with the scraped data as JSON response
-        return response()->json($dossier);
+        // Registration date
+        $dossierDetails->received_date = Carbon::createFromFormat('d.m.Y', $tableRowsAppDetail->eq(1)->filter('td:nth-child(2)')->text())->toDateString();
+
+        // Completion date
+        $dossierDetails->completion_date = Carbon::createFromFormat('d.m.Y', $tableRowsAppDetail->eq(2)->filter('td:nth-child(2)')->text())->toDateString();
+
+        // Request subject
+        $dossierDetails->request_type = $tableRowsAppDetail->eq(3)->filter('td:nth-child(2)')->text();
+
+        // Status
+        $dossierDetails->status = $tableRowsAppDetail->eq(4)->filter('td:nth-child(2)')->text();
+    }
+
+    /**
+     * Scrape the application history from the HTML.
+     *
+     * @param \Symfony\Component\DomCrawler\Crawler $crawler The HTML crawler
+     * @param \App\DossierDetails $dossierDetails The dossier details model
+     */
+    private function scrapeAppHistory(Crawler $crawler, DossierDetails $dossierDetails)
+    {
+        $tableRowsAppHist = $crawler->filter('#AppHist tr:not(.tabel_categorii)');
+
+        if ($tableRowsAppHist->count() > 0) {
+            $history = [];
+
+            foreach ($tableRowsAppHist as $row) {
+                $rowElem = new Crawler($row);
+                $historyItem = [
+                    'date' => Carbon::createFromFormat('d.m.Y', $rowElem->filter('td:nth-child(1)')->text())->toDateString(),
+                    'action' => $rowElem->filter('td:nth-child(2)')->text(),
+                    'status' => $rowElem->filter('td:nth-child(3)')->text(),
+                    'actor' => $rowElem->filter('td:nth-child(4)')->text(),
+                ];
+                $history[] = $historyItem;
+            }
+
+            $dossierDetails->history = json_encode($history);
+        }
+    }
+
+    /**
+     * Scrape the application notes from the HTML.
+     *
+     * @param \Symfony\Component\DomCrawler\Crawler $crawler The HTML crawler
+     * @param \App\DossierDetails $dossierDetails The dossier details model
+     */
+    private function scrapeAppNotes(Crawler $crawler, DossierDetails $dossierDetails)
+    {
+        $tableRowsAppNotes = $crawler->filter('#AppNote tr:not(.tabel_categorii)');
+
+        if ($tableRowsAppNotes->count() > 0) {
+            $notes = [];
+
+            foreach ($tableRowsAppNotes as $row) {
+                $rowElem = new Crawler($row);
+                $noteItem = [
+                    'date' => Carbon::createFromFormat('d.m.Y', $rowElem->filter('td:nth-child(1)')->text())->toDateString(),
+                    'observations' => $rowElem->filter('td:nth-child(2)')->text(),
+                    'compartment' => $rowElem->filter('td:nth-child(3)')->text(),
+                ];
+
+                $notes[] = $noteItem;
+            }
+
+            $dossierDetails->notes = json_encode($notes);
+        }
     }
 }
